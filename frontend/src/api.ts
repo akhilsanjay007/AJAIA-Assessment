@@ -13,6 +13,17 @@ export type LoginResponse = {
 const TOKEN_KEY = "access_token";
 const USER_KEY = "user";
 
+// Local `npm run dev` leaves this unset and uses the Vite `/api` proxy.
+// A production build uses VITE_API_URL (see frontend/.env.production).
+function resolveApiUrl(path: string): string {
+  const configured = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "");
+  if (!configured) {
+    return path;
+  }
+  const suffix = path.startsWith("/api/") || path === "/api" ? path.slice(4) : path;
+  return `${configured}${suffix}`;
+}
+
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -64,7 +75,7 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(path, { ...init, headers });
+  const response = await fetch(resolveApiUrl(path), { ...init, headers });
   if (response.status === 401) {
     logout();
     throw new Error("Please sign in again");
@@ -99,7 +110,7 @@ export async function uploadDocument(file: File): Promise<DocumentRecord> {
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  const response = await fetch("/api/documents/upload", { method: "POST", body, headers });
+  const response = await fetch(resolveApiUrl("/api/documents/upload"), { method: "POST", body, headers });
   if (response.status === 401) {
     logout();
     throw new Error("Please sign in again");
@@ -199,7 +210,7 @@ export function leavePresence(id: number): void {
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  void fetch(`/api/documents/${id}/presence`, { method: "DELETE", headers, keepalive: true });
+  void fetch(resolveApiUrl(`/api/documents/${id}/presence`), { method: "DELETE", headers, keepalive: true });
 }
 
 export async function login(email: string, password: string): Promise<LoginResponse> {
@@ -207,7 +218,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
   body.set("username", email);
   body.set("password", password);
 
-  const response = await fetch("/api/auth/login", {
+  const response = await fetch(resolveApiUrl("/api/auth/login"), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,

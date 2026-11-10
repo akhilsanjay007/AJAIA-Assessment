@@ -21,6 +21,13 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
+def normalize_database_url(url: str) -> str:
+    # Railway's Postgres plugin uses the postgres:// scheme. SQLAlchemy expects postgresql://.
+    if url.startswith("postgres://"):
+        return "postgresql://" + url[len("postgres://") :]
+    return url
+
+
 def _engine_kwargs(url: str) -> dict:
     if not url.startswith("sqlite"):
         return {}
@@ -30,7 +37,8 @@ def _engine_kwargs(url: str) -> dict:
     return kwargs
 
 
-engine = create_engine(settings.database_url, **_engine_kwargs(settings.database_url))
+database_url = normalize_database_url(settings.database_url)
+engine = create_engine(database_url, **_engine_kwargs(database_url))
 SessionLocal = sessionmaker(autoflush=False, bind=engine)
 
 

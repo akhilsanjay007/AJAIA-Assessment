@@ -62,6 +62,34 @@ Open http://localhost:5173 and sign in with a demo account. The API must be runn
 
 On an open document, Export downloads the current HTML as a `.md` file named from the title. Underline is exported as `<u>`. History lists the last 10 saves, opens one read-only, and can restore it when you have edit access. The share form chooses Can view or Can edit and lists people the document is already shared with. The header shows who else has the document open. That list is polled about every 8 seconds, so it can lag by one poll. Two people with edit access still overwrite each other on save.
 
+## Deployment
+
+The backend deploys to Railway. The frontend deploys to Vercel, or to Railway as a second service. Local `npm run dev` and uvicorn are unchanged: leave `VITE_API_URL` unset and the Vite dev server still proxies `/api` to port 8000.
+
+### Backend on Railway
+
+Create a service from this repo with the root directory set to `backend`. Start command:
+
+```bash
+python seed.py && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+`seed.py` only inserts the demo users when they are missing, so it is safe to run on each boot. Tables are created when the API starts.
+
+Attach the Postgres plugin if you want Postgres. Railway sets `DATABASE_URL` as `postgres://...`, and the app rewrites that to `postgresql://` for SQLAlchemy. With no `DATABASE_URL`, the app uses SQLite at `sqlite:///./docs.db`.
+
+Set `SECRET_KEY` to a long random string. Set `CORS_ORIGINS` to the frontend origin, for example `https://your-app.vercel.app`. `http://localhost:5173` and `http://127.0.0.1:5173` are always allowed. There is also a commented placeholder in `backend/app/main.py`.
+
+### Frontend on Vercel
+
+Set the project root to `frontend`, the framework to Vite, the build command to `npm run build`, and the output directory to `dist`.
+
+Set `VITE_API_URL` to the Railway backend URL with no trailing slash, for example `https://your-service.up.railway.app`. Vite reads that variable at build time. `frontend/.env.production` has the same placeholder for a local production build. Do not set it for `npm run dev`.
+
+### Frontend on Railway
+
+Use a second service with root directory `frontend`. Set `VITE_API_URL` to the backend URL before the build, then serve the `dist` folder. The same placeholder rules apply.
+
 ## More detail
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — how the pieces fit and which tradeoffs were chosen
