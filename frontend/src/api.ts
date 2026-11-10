@@ -34,6 +34,72 @@ export function logout(): void {
   localStorage.removeItem(USER_KEY);
 }
 
+export type DocumentRecord = {
+  id: number;
+  title: string;
+  content: string;
+  owner_id: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DocumentInput = {
+  title: string;
+  content: string;
+};
+
+async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers);
+  const token = getToken();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  if (init.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(path, { ...init, headers });
+  if (response.status === 401) {
+    logout();
+    throw new Error("Please sign in again");
+  }
+  if (!response.ok) {
+    let message = "Request failed";
+    try {
+      const payload = (await response.json()) as { detail?: string };
+      if (typeof payload.detail === "string") {
+        message = payload.detail;
+      }
+    } catch {
+      // Keep the fallback message when the body is not JSON.
+    }
+    throw new Error(message);
+  }
+  return (await response.json()) as T;
+}
+
+export function listDocuments(): Promise<DocumentRecord[]> {
+  return api<DocumentRecord[]>("/api/documents");
+}
+
+export function createDocument(input: DocumentInput): Promise<DocumentRecord> {
+  return api<DocumentRecord>("/api/documents", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function getDocument(id: number): Promise<DocumentRecord> {
+  return api<DocumentRecord>(`/api/documents/${id}`);
+}
+
+export function updateDocument(id: number, input: DocumentInput): Promise<DocumentRecord> {
+  return api<DocumentRecord>(`/api/documents/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
 export async function login(email: string, password: string): Promise<LoginResponse> {
   const body = new URLSearchParams();
   body.set("username", email);

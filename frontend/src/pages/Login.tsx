@@ -1,30 +1,30 @@
 import { FormEvent, useState } from "react";
-import { getStoredUser, login, logout, type User } from "../api";
+import { Navigate, useNavigate } from "react-router-dom";
+import { getToken, login } from "../api";
 
 export function Login() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("alice@example.com");
   const [password, setPassword] = useState("password");
-  const [user, setUser] = useState<User | null>(() => getStoredUser());
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  if (getToken()) {
+    return <Navigate to="/documents" replace />;
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
-      const result = await login(email, password);
-      setUser(result.user);
+      await login(email, password);
+      navigate("/documents");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setSubmitting(false);
     }
-  }
-
-  function handleLogout() {
-    logout();
-    setUser(null);
   }
 
   return (
@@ -33,23 +33,10 @@ export function Login() {
         <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
           Document Editor
         </p>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">
-          {user ? `Welcome, ${user.name}` : "Sign in"}
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          {user ? user.email : "Use your account to open the editor."}
-        </p>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-900">Sign in</h1>
+        <p className="mt-1 text-sm text-slate-600">Use your account to open the editor.</p>
 
-        {user ? (
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="mt-6 w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-700"
-          >
-            Sign out
-          </button>
-        ) : (
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             <label className="block text-sm font-medium text-slate-700">
               Email
               <input
@@ -89,7 +76,6 @@ export function Login() {
               Password for each is password.
             </p>
           </form>
-        )}
       </section>
     </main>
   );
