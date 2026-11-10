@@ -23,6 +23,18 @@ import {
 import { Toolbar } from "../components/Toolbar";
 import { downloadMarkdown } from "../htmlToMarkdown";
 
+const EDITOR_CLASS =
+  "editor-content min-h-[680px] px-8 pb-24 pt-6 focus:outline-none sm:px-16";
+
+const primaryButton =
+  "inline-flex h-9 items-center justify-center rounded-md bg-blue-700 px-3.5 text-sm font-medium text-white transition-colors hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/40 disabled:cursor-not-allowed disabled:opacity-60";
+
+const secondaryButton =
+  "inline-flex h-9 items-center justify-center rounded-md border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/30 disabled:cursor-not-allowed disabled:opacity-60";
+
+const fieldClass =
+  "mt-1.5 h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20";
+
 export function EditorPage() {
   const { id } = useParams();
   const documentId = Number(id);
@@ -37,6 +49,7 @@ export function EditorPage() {
   const [shares, setShares] = useState<ShareGrant[]>([]);
   const currentUser = getStoredUser();
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [versions, setVersions] = useState<DocumentVersion[]>([]);
   const [preview, setPreview] = useState<DocumentVersion | null>(null);
   const [restoring, setRestoring] = useState(false);
@@ -44,6 +57,7 @@ export function EditorPage() {
   const canEdit = doc?.can_edit ?? false;
   const editing = canEdit && preview === null;
   const isOwner = doc !== null && currentUser !== null && doc.owner_id === currentUser.id;
+  const panelOpen = historyOpen || (isOwner && shareOpen);
 
   const editor = useEditor({
     extensions: [
@@ -55,7 +69,7 @@ export function EditorPage() {
     content: "<p></p>",
     editorProps: {
       attributes: {
-        class: "editor-content min-h-[420px] px-5 py-4 focus:outline-none",
+        class: EDITOR_CLASS,
       },
     },
   });
@@ -240,24 +254,40 @@ export function EditorPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-4">
-          <div>
-            <Link to="/documents" className="text-sm font-medium text-slate-600 hover:text-slate-900">
-              Back to documents
+    <main className="min-h-screen bg-[#f8f9fa]">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
+        <div className="flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 sm:px-5">
+          <div className="min-w-0">
+            <Link
+              to="/documents"
+              className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+            >
+              ← Back to documents
             </Link>
             {viewers.length > 0 ? (
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-0.5 truncate text-xs text-slate-500">
+                <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 align-middle" />
                 Also viewing: {viewers.map((person) => person.name).join(", ")}
               </p>
             ) : null}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            {status ? <span className="text-xs text-slate-400">{status}</span> : null}
+            {isOwner ? (
+              <button
+                type="button"
+                aria-expanded={shareOpen}
+                onClick={() => setShareOpen((open) => !open)}
+                className={shareOpen ? `${secondaryButton} bg-slate-100` : secondaryButton}
+              >
+                Share
+              </button>
+            ) : null}
             <button
               type="button"
+              aria-expanded={historyOpen}
               onClick={() => setHistoryOpen((open) => !open)}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+              className={historyOpen ? `${secondaryButton} bg-slate-100` : secondaryButton}
             >
               History
             </button>
@@ -265,139 +295,178 @@ export function EditorPage() {
               type="button"
               onClick={handleExport}
               disabled={!editor && !doc}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+              className={secondaryButton}
             >
               Export
             </button>
             {editing ? (
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving || !editor}
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
-              >
+              <button type="button" onClick={handleSave} disabled={saving || !editor} className={primaryButton}>
                 {saving ? "Saving..." : "Save"}
               </button>
             ) : (
-              <p className="text-sm font-medium text-slate-500">
+              <span className="inline-flex h-9 items-center rounded-md bg-slate-100 px-3 text-sm font-medium text-slate-600">
                 {preview ? "Viewing history" : "View only"}
-              </p>
+              </span>
             )}
           </div>
         </div>
       </header>
-      <section className="mx-auto max-w-3xl px-4 py-8">
-        {error ? (
-          <p role="alert" className="mb-4 text-sm text-red-600">
-            {error}
-          </p>
-        ) : null}
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <label className="block border-b border-slate-200 px-5 py-4">
-            <span className="sr-only">Title</span>
-            <input
-              value={preview ? preview.title : title}
-              readOnly={!editing}
-              onChange={(event) => {
-                setTitle(event.target.value);
-                setStatus(null);
-              }}
-              className="w-full text-2xl font-semibold text-slate-900 outline-none read-only:text-slate-700"
-            />
-          </label>
-          {editing ? <Toolbar editor={editor} /> : null}
-          <EditorContent editor={editor} />
+
+      <div className="flex flex-col lg:flex-row lg:items-start">
+        <div className="min-w-0 w-full lg:flex-1">
+          <div className="mx-auto w-full max-w-[840px] px-4 py-8 sm:px-6 sm:py-10">
+            {error ? (
+              <p role="alert" className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </p>
+            ) : null}
+            <article className="min-h-[calc(100vh-8rem)] bg-white shadow-[0_1px_2px_rgba(60,64,67,0.12),0_2px_8px_rgba(60,64,67,0.08)] ring-1 ring-slate-900/[0.04]">
+              <label className="block px-8 pt-10 sm:px-16 sm:pt-12">
+                <span className="sr-only">Title</span>
+                <input
+                  value={preview ? preview.title : title}
+                  readOnly={!editing}
+                  placeholder="Untitled"
+                  onChange={(event) => {
+                    setTitle(event.target.value);
+                    setStatus(null);
+                  }}
+                  className="w-full border-0 bg-transparent text-[1.75rem] font-normal leading-tight tracking-tight text-slate-900 outline-none placeholder:text-slate-300 read-only:cursor-default sm:text-[2rem]"
+                />
+              </label>
+              {editing ? <Toolbar editor={editor} /> : <div className="mt-6 border-b border-slate-200" />}
+              <EditorContent editor={editor} />
+            </article>
+          </div>
         </div>
-        {isOwner ? (
-          <form onSubmit={handleShare} className="mt-4 flex flex-wrap items-end gap-2">
-            <label className="text-sm font-medium text-slate-700">
-              Share with
-              <input
-                type="email"
-                required
-                value={shareEmail}
-                onChange={(event) => setShareEmail(event.target.value)}
-                placeholder="bob@example.com"
-                className="mt-1 block w-64 rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-              />
-            </label>
-            <label className="text-sm font-medium text-slate-700">
-              Permission
-              <select
-                value={sharePermission}
-                onChange={(event) => setSharePermission(event.target.value as SharePermission)}
-                className="mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
-              >
-                <option value="view">Can view</option>
-                <option value="edit">Can edit</option>
-              </select>
-            </label>
-            <button
-              type="submit"
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-            >
-              Share
-            </button>
-            {shareMessage ? <p className="text-sm text-slate-600">{shareMessage}</p> : null}
-          </form>
-        ) : null}
-        {isOwner && shares.length > 0 ? (
-          <ul className="mt-3 space-y-1 text-sm text-slate-600">
-            {shares.map((share) => (
-              <li key={share.email}>
-                {share.name} ({share.email}) · {share.permission === "edit" ? "Can edit" : "Can view"}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {historyOpen ? (
-          <section className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">History</h2>
-              {preview ? (
-                <button
-                  type="button"
-                  onClick={() => setPreview(null)}
-                  className="text-sm font-medium text-slate-700 hover:text-slate-900"
-                >
-                  Back to current
-                </button>
-              ) : null}
-            </div>
-            {versions.length === 0 ? (
-              <p className="text-sm text-slate-500">No saved versions yet.</p>
-            ) : (
-              <ul className="divide-y divide-slate-200">
-                {versions.map((version) => (
-                  <li key={version.id} className="flex items-center justify-between gap-3 py-2">
-                    <button
-                      type="button"
-                      onClick={() => setPreview(version)}
-                      className="text-left text-sm text-slate-800 hover:text-slate-950"
+
+        {panelOpen ? (
+          <aside className="w-full border-t border-slate-200 bg-white lg:sticky lg:top-14 lg:h-[calc(100vh-3.5rem)] lg:w-[320px] lg:shrink-0 lg:self-start lg:overflow-y-auto lg:border-l lg:border-t-0">
+            {isOwner && shareOpen ? (
+              <section className="border-b border-slate-100 px-5 py-5">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h2 className="text-sm font-semibold text-slate-900">Share</h2>
+                  <button
+                    type="button"
+                    onClick={() => setShareOpen(false)}
+                    className="text-sm font-medium text-slate-500 hover:text-slate-800"
+                  >
+                    Close
+                  </button>
+                </div>
+                <form onSubmit={handleShare} className="space-y-3">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Share with
+                    <input
+                      type="email"
+                      required
+                      value={shareEmail}
+                      onChange={(event) => setShareEmail(event.target.value)}
+                      placeholder="bob@example.com"
+                      className={fieldClass}
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Permission
+                    <select
+                      value={sharePermission}
+                      onChange={(event) => setSharePermission(event.target.value as SharePermission)}
+                      className={fieldClass}
                     >
-                      <span className="font-medium">{version.title}</span>
-                      <span className="mt-0.5 block text-xs text-slate-500">
-                        {version.saved_by_name} · {new Date(version.created_at).toLocaleString()}
-                      </span>
-                    </button>
-                    {preview?.id === version.id && canEdit ? (
+                      <option value="view">Can view</option>
+                      <option value="edit">Can edit</option>
+                    </select>
+                  </label>
+                  <button type="submit" className={`${primaryButton} w-full`}>
+                    Share
+                  </button>
+                  {shareMessage ? <p className="text-sm text-slate-600">{shareMessage}</p> : null}
+                </form>
+                {shares.length > 0 ? (
+                  <ul className="mt-5 divide-y divide-slate-100 border-t border-slate-100">
+                    {shares.map((share) => (
+                      <li key={share.email} className="flex items-center justify-between gap-3 py-2.5">
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium text-slate-800">{share.name}</span>
+                          <span className="block truncate text-xs text-slate-500">{share.email}</span>
+                        </span>
+                        <span className="shrink-0 text-xs text-slate-500">
+                          {share.permission === "edit" ? "Can edit" : "Can view"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </section>
+            ) : null}
+
+            {historyOpen ? (
+              <section className="px-5 py-5">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h2 className="text-sm font-semibold text-slate-900">History</h2>
+                  <div className="flex items-center gap-3">
+                    {preview ? (
                       <button
                         type="button"
-                        onClick={() => handleRestore(version)}
-                        disabled={restoring}
-                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+                        onClick={() => setPreview(null)}
+                        className="text-sm font-medium text-slate-700 hover:text-slate-900"
                       >
-                        {restoring ? "Restoring..." : "Restore"}
+                        Back to current
                       </button>
                     ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+                    <button
+                      type="button"
+                      onClick={() => setHistoryOpen(false)}
+                      className="text-sm font-medium text-slate-500 hover:text-slate-800"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+                {versions.length === 0 ? (
+                  <p className="text-sm text-slate-500">No saved versions yet.</p>
+                ) : (
+                  <ul className="divide-y divide-slate-100">
+                    {versions.map((version) => {
+                      const selected = preview?.id === version.id;
+                      return (
+                        <li key={version.id} className="py-2.5">
+                          <div className="flex items-start justify-between gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setPreview(version)}
+                              className={`min-w-0 flex-1 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-slate-50 ${
+                                selected ? "bg-blue-50" : ""
+                              }`}
+                            >
+                              <span className="block truncate text-sm font-medium text-slate-900">
+                                {version.title}
+                              </span>
+                              <span className="mt-0.5 block text-xs text-slate-500">
+                                {version.saved_by_name} · {new Date(version.created_at).toLocaleString()}
+                              </span>
+                            </button>
+                            {selected && canEdit ? (
+                              <button
+                                type="button"
+                                onClick={() => handleRestore(version)}
+                                disabled={restoring}
+                                className={`${secondaryButton} mt-1 shrink-0`}
+                              >
+                                {restoring ? "Restoring..." : "Restore"}
+                              </button>
+                            ) : null}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </section>
+            ) : null}
+          </aside>
         ) : null}
-        {status ? <p className="mt-3 text-sm text-slate-500">{status}</p> : null}
-      </section>
+      </div>
     </main>
   );
 }
