@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -46,7 +47,29 @@ class DocumentList(BaseModel):
 
 class ShareRequest(BaseModel):
     email: str
+    permission: Literal["view", "edit"] = "view"
 
 
 class ShareResult(BaseModel):
     detail: str
+
+
+class ShareGrant(BaseModel):
+    email: str
+    name: str
+    permission: Literal["view", "edit"]
+
+
+class DocumentVersionOut(BaseModel):
+    id: int
+    title: str
+    content: str
+    saved_by_user_id: int
+    saved_by_name: str
+    created_at: datetime
+
+
+class PresenceUser(BaseModel):
+    id: int
+    name: str
+    email: str

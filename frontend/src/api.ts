@@ -81,6 +81,9 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
     throw new Error(message);
   }
+  if (response.status === 204) {
+    return undefined as T;
+  }
   return (await response.json()) as T;
 }
 
@@ -116,11 +119,27 @@ export async function uploadDocument(file: File): Promise<DocumentRecord> {
   return (await response.json()) as DocumentRecord;
 }
 
-export function shareDocument(id: number, email: string): Promise<{ detail: string }> {
+export type SharePermission = "view" | "edit";
+
+export type ShareGrant = {
+  email: string;
+  name: string;
+  permission: SharePermission;
+};
+
+export function shareDocument(
+  id: number,
+  email: string,
+  permission: SharePermission = "view",
+): Promise<{ detail: string }> {
   return api<{ detail: string }>(`/api/documents/${id}/share`, {
     method: "POST",
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, permission }),
   });
+}
+
+export function listShares(id: number): Promise<ShareGrant[]> {
+  return api<ShareGrant[]>(`/api/documents/${id}/shares`);
 }
 
 export function createDocument(input: DocumentInput): Promise<DocumentRecord> {
@@ -139,6 +158,48 @@ export function updateDocument(id: number, input: DocumentInput): Promise<Docume
     method: "PUT",
     body: JSON.stringify(input),
   });
+}
+
+export type DocumentVersion = {
+  id: number;
+  title: string;
+  content: string;
+  saved_by_user_id: number;
+  saved_by_name: string;
+  created_at: string;
+};
+
+export function listVersions(id: number): Promise<DocumentVersion[]> {
+  return api<DocumentVersion[]>(`/api/documents/${id}/versions`);
+}
+
+export function restoreVersion(id: number, versionId: number): Promise<DocumentRecord> {
+  return api<DocumentRecord>(`/api/documents/${id}/versions/${versionId}/restore`, {
+    method: "POST",
+  });
+}
+
+export type PresenceUser = {
+  id: number;
+  name: string;
+  email: string;
+};
+
+export function heartbeatPresence(id: number): Promise<void> {
+  return api<void>(`/api/documents/${id}/presence`, { method: "POST" });
+}
+
+export function listPresence(id: number): Promise<PresenceUser[]> {
+  return api<PresenceUser[]>(`/api/documents/${id}/presence`);
+}
+
+export function leavePresence(id: number): void {
+  const headers = new Headers();
+  const token = getToken();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  void fetch(`/api/documents/${id}/presence`, { method: "DELETE", headers, keepalive: true });
 }
 
 export async function login(email: string, password: string): Promise<LoginResponse> {

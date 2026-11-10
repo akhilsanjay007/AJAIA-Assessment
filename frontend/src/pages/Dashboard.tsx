@@ -67,6 +67,7 @@ export function Dashboard() {
       navigate(`/documents/${created.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not upload file");
+    } finally {
       setUploading(false);
     }
   }
@@ -76,11 +77,13 @@ export function Dashboard() {
   documents,
   empty,
   onOpen,
+  showAccess = false,
 }: {
   title: string;
   documents: DocumentRecord[];
   empty: string;
   onOpen: (id: number) => void;
+  showAccess?: boolean;
 }) {
   return (
     <section className="mb-8">
@@ -99,8 +102,11 @@ export function Dashboard() {
                 className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50"
               >
                 <span className="font-medium text-slate-900">{document.title}</span>
-                <span className="text-xs text-slate-500">
-                  {new Date(document.updated_at).toLocaleString()}
+                <span className="flex items-center gap-3 text-xs text-slate-500">
+                  {showAccess ? (
+                    <span className="font-medium">{document.can_edit ? "Can edit" : "Can view"}</span>
+                  ) : null}
+                  <span>{new Date(document.updated_at).toLocaleString()}</span>
                 </span>
               </button>
             </li>
@@ -174,6 +180,7 @@ function handleLogout() {
           title="Shared with me"
           documents={shared}
           empty="Nothing has been shared with you yet."
+          showAccess
           onOpen={(id) => navigate(`/documents/${id}`)}
         />
       </section>

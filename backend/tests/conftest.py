@@ -24,6 +24,8 @@ def setup_database():
     db = SessionLocal()
     try:
         db.add(User(email="alice@example.com", name="Alice", password="password"))
+        db.add(User(email="bob@example.com", name="Bob", password="password"))
+        db.add(User(email="charlie@example.com", name="Charlie", password="password"))
         db.commit()
     finally:
         db.close()
