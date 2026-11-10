@@ -3,29 +3,30 @@
 ## Included
 
 - FastAPI backend, SQLite, and seeded JWT login
-- React, Vite, TypeScript, and Tailwind client
-- Document create, list, open, and update
-- TipTap editor with bold, italic, underline, headings H1–H3, bullet list, and numbered list
-- HTML content that is saved and loaded again
-- Owner-only sharing by email
+- React, Vite, TypeScript, Tailwind, and TipTap
+- Document create, rename, edit, save, and list
+- Rich text: bold, italic, underline, H1–H3, bullet list, and numbered list
+- HTML content persisted and reloaded
+- Sharing with view and edit permissions (owner only)
 - Dashboard sections for “My documents” and “Shared with me”
-- Read-only open for a shared user
-- Upload of `.txt` and `.md` files into a new document
-- A clear error for any other file type, including `.docx`
-- Automated tests for health, login, and document create plus list
+- Read-only mode for viewers
+- Upload of `.txt` and `.md` files to create a document
+- Version history: the last 10 snapshots, with view and restore
+- Presence indicators for who has the document open
+- Export to Markdown
+- Automated tests for health, auth, and documents
 
 ## Not included
 
-- Real-time collaboration
+- Full real-time collaborative editing (no CRDT or operational transform)
 - Comments
-- Version history
 - `.docx` import
 - User registration or password hashing
 - Database migrations for an existing `docs.db`
 
 ## Seeded credentials
 
-Password for every account: `password`
+Password for all accounts: `password`
 
 - alice@example.com
 - bob@example.com
@@ -33,4 +34,10 @@ Password for every account: `password`
 
 ## Run locally
 
-See [README.md](README.md). From `backend/`, install requirements, run `seed.py`, then uvicorn on port 8000. From `frontend/`, run `npm install` and `npm run dev`, then open http://localhost:5173.
+Setup steps are in [README.md](README.md).
+
+## Notes
+
+- Presence is polling-based, not a WebSocket
+- Two editors can still overwrite each other (last-write-wins)
+- Version history keeps the last 10 saves
