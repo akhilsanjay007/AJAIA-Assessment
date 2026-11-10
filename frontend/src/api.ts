@@ -39,8 +39,14 @@ export type DocumentRecord = {
   title: string;
   content: string;
   owner_id: number;
+  can_edit: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type DocumentList = {
+  owned: DocumentRecord[];
+  shared: DocumentRecord[];
 };
 
 export type DocumentInput = {
@@ -78,8 +84,15 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (await response.json()) as T;
 }
 
-export function listDocuments(): Promise<DocumentRecord[]> {
-  return api<DocumentRecord[]>("/api/documents");
+export function listDocuments(): Promise<DocumentList> {
+  return api<DocumentList>("/api/documents");
+}
+
+export function shareDocument(id: number, email: string): Promise<{ detail: string }> {
+  return api<{ detail: string }>(`/api/documents/${id}/share`, {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
 }
 
 export function createDocument(input: DocumentInput): Promise<DocumentRecord> {

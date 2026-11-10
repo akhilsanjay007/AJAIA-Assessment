@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import { Link, useParams } from "react-router-dom";
-import { getDocument, updateDocument, type DocumentRecord } from "../api";
+import { getDocument, shareDocument, updateDocument, type DocumentRecord } from "../api";
 import { Toolbar } from "../components/Toolbar";
 
 export function EditorPage() {
@@ -14,6 +14,9 @@ export function EditorPage() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [shareEmail, setShareEmail] = useState("");
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
+  const canEdit = doc?.can_edit ?? false;
 
   const editor = useEditor({
     extensions: [
@@ -58,11 +61,28 @@ export function EditorPage() {
     if (!editor || !doc) {
       return;
     }
+    editor.setEditable(doc.can_edit);
     editor.commands.setContent(doc.content || "<p></p>", false);
   }, [editor, doc]);
 
+  async function handleShare(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!Number.isInteger(documentId)) {
+      return;
+    }
+    setError(null);
+    setShareMessage(null);
+    try {
+      const result = await shareDocument(documentId, shareEmail);
+      setShareMessage(result.detail);
+      setShareEmail("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not share document");
+    }
+  }
+
   async function handleSave() {
-    if (!editor || !Number.isInteger(documentId)) {
+    if (!editor || !canEdit || !Number.isInteger(documentId)) {
       return;
     }
     setSaving(true);
@@ -88,14 +108,18 @@ export function EditorPage() {
           <Link to="/documents" className="text-sm font-medium text-slate-600 hover:text-slate-900">
             Back to documents
           </Link>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || !editor}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
-          >
-            {saving ? "Saving..." : "Save"}
-          </button>
+          {canEdit ? (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || !editor}
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+          ) : (
+            <p className="text-sm font-medium text-slate-500">View only</p>
+          )}
         </div>
       </header>
       <section className="mx-auto max-w-3xl px-4 py-8">
@@ -109,16 +133,39 @@ export function EditorPage() {
             <span className="sr-only">Title</span>
             <input
               value={title}
+              readOnly={!canEdit}
               onChange={(event) => {
                 setTitle(event.target.value);
                 setStatus(null);
               }}
-              className="w-full text-2xl font-semibold text-slate-900 outline-none"
+              className="w-full text-2xl font-semibold text-slate-900 outline-none read-only:text-slate-700"
             />
           </label>
-          <Toolbar editor={editor} />
+          {canEdit ? <Toolbar editor={editor} /> : null}
           <EditorContent editor={editor} />
         </div>
+        {canEdit ? (
+          <form onSubmit={handleShare} className="mt-4 flex flex-wrap items-end gap-2">
+            <label className="text-sm font-medium text-slate-700">
+              Share with
+              <input
+                type="email"
+                required
+                value={shareEmail}
+                onChange={(event) => setShareEmail(event.target.value)}
+                placeholder="bob@example.com"
+                className="mt-1 block w-64 rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none ring-slate-400 focus:ring-2"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+            >
+              Share
+            </button>
+            {shareMessage ? <p className="text-sm text-slate-600">{shareMessage}</p> : null}
+          </form>
+        ) : null}
         {status ? <p className="mt-3 text-sm text-slate-500">{status}</p> : null}
       </section>
     </main>

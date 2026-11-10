@@ -34,5 +34,19 @@ class DocumentOut(BaseModel):
     title: str
     content: str
     owner_id: int
+    can_edit: bool
     created_at: datetime
     updated_at: datetime
+
+
+class DocumentList(BaseModel):
+    owned: list[DocumentOut]
+    shared: list[DocumentOut]
+
+
+class ShareRequest(BaseModel):
+    email: str
+
+
+class ShareResult(BaseModel):
+    detail: str

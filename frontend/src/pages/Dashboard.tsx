@@ -11,7 +11,8 @@ import {
 export function Dashboard() {
   const navigate = useNavigate();
   const user = getStoredUser();
-  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [owned, setOwned] = useState<DocumentRecord[]>([]);
+  const [shared, setShared] = useState<DocumentRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -20,7 +21,8 @@ export function Dashboard() {
     listDocuments()
       .then((items) => {
         if (!cancelled) {
-          setDocuments(items);
+          setOwned(items.owned);
+          setShared(items.shared);
         }
       })
       .catch((err: unknown) => {
@@ -45,7 +47,47 @@ export function Dashboard() {
     }
   }
 
-  function handleLogout() {
+  function DocumentSection({
+  title,
+  documents,
+  empty,
+  onOpen,
+}: {
+  title: string;
+  documents: DocumentRecord[];
+  empty: string;
+  onOpen: (id: number) => void;
+}) {
+  return (
+    <section className="mb-8">
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h2>
+      {documents.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">
+          {empty}
+        </p>
+      ) : (
+        <ul className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
+          {documents.map((document) => (
+            <li key={document.id}>
+              <button
+                type="button"
+                onClick={() => onOpen(document.id)}
+                className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50"
+              >
+                <span className="font-medium text-slate-900">{document.title}</span>
+                <span className="text-xs text-slate-500">
+                  {new Date(document.updated_at).toLocaleString()}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function handleLogout() {
     logout();
     navigate("/", { replace: true });
   }
@@ -58,7 +100,7 @@ export function Dashboard() {
             <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
               Document Editor
             </p>
-            <h1 className="text-xl font-semibold text-slate-900">My documents</h1>
+            <h1 className="text-xl font-semibold text-slate-900">Documents</h1>
           </div>
           <div className="flex items-center gap-3">
             <p className="text-sm text-slate-600">{user?.name}</p>
@@ -88,28 +130,18 @@ export function Dashboard() {
             {error}
           </p>
         ) : null}
-        {documents.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center text-sm text-slate-500">
-            No documents yet. Create one to start writing.
-          </p>
-        ) : (
-          <ul className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
-            {documents.map((document) => (
-              <li key={document.id}>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/documents/${document.id}`)}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50"
-                >
-                  <span className="font-medium text-slate-900">{document.title}</span>
-                  <span className="text-xs text-slate-500">
-                    {new Date(document.updated_at).toLocaleString()}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        <DocumentSection
+          title="My documents"
+          documents={owned}
+          empty="No documents yet. Create one to start writing."
+          onOpen={(id) => navigate(`/documents/${id}`)}
+        />
+        <DocumentSection
+          title="Shared with me"
+          documents={shared}
+          empty="Nothing has been shared with you yet."
+          onOpen={(id) => navigate(`/documents/${id}`)}
+        />
       </section>
     </main>
   );
