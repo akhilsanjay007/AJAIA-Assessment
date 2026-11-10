@@ -88,6 +88,34 @@ export function listDocuments(): Promise<DocumentList> {
   return api<DocumentList>("/api/documents");
 }
 
+export async function uploadDocument(file: File): Promise<DocumentRecord> {
+  const body = new FormData();
+  body.append("file", file);
+  const headers = new Headers();
+  const token = getToken();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  const response = await fetch("/api/documents/upload", { method: "POST", body, headers });
+  if (response.status === 401) {
+    logout();
+    throw new Error("Please sign in again");
+  }
+  if (!response.ok) {
+    let message = "Upload failed";
+    try {
+      const payload = (await response.json()) as { detail?: string };
+      if (typeof payload.detail === "string") {
+        message = payload.detail;
+      }
+    } catch {
+      // Keep the fallback message when the body is not JSON.
+    }
+    throw new Error(message);
+  }
+  return (await response.json()) as DocumentRecord;
+}
+
 export function shareDocument(id: number, email: string): Promise<{ detail: string }> {
   return api<{ detail: string }>(`/api/documents/${id}/share`, {
     method: "POST",

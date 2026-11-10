@@ -1,6 +1,8 @@
+import html
 from datetime import datetime, timezone
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -22,6 +24,19 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 def clean_title(title: str) -> str:
     cleaned = title.strip()
     return cleaned or "Untitled"
+
+
+def text_to_html(text: str) -> str:
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not normalized:
+        return "<p></p>"
+    blocks: list[str] = []
+    for part in normalized.split("\n\n"):
+        lines = [line.strip() for line in part.split("\n") if line.strip()]
+        if not lines:
+            continue
+        blocks.append("<p>" + "<br>".join(html.escape(line) for line in lines) + "</p>")
+    return "".join(blocks) or "<p></p>"
 
 
 def to_document_out(document: Document, *, can_edit: bool) -> DocumentOut:
@@ -62,6 +77,38 @@ def create_document(
     document = Document(
         title=clean_title(payload.title),
         content=payload.content,
+        owner_id=user.id,
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    return to_document_out(document, can_edit=True)
+
+
+@router.post("/upload", response_model=DocumentOut, status_code=status.HTTP_201_CREATED)
+async def upload_document(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> DocumentOut:
+    filename = file.filename or ""
+    extension = Path(filename).suffix.lower()
+    if extension not in {".txt", ".md"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only .txt and .md files can be uploaded",
+        )
+    raw = await file.read()
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be UTF-8 text",
+        ) from exc
+    document = Document(
+        title=clean_title(Path(filename).stem),
+        content=text_to_html(text),
         owner_id=user.id,
     )
     db.add(document)

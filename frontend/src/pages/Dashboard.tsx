@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   createDocument,
   getStoredUser,
   listDocuments,
   logout,
+  uploadDocument,
   type DocumentRecord,
 } from "../api";
 
@@ -15,6 +16,7 @@ export function Dashboard() {
   const [shared, setShared] = useState<DocumentRecord[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +46,28 @@ export function Dashboard() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create document");
       setCreating(false);
+    }
+  }
+
+  async function handleUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+    if (extension !== ".txt" && extension !== ".md") {
+      setError("Only .txt and .md files can be uploaded");
+      return;
+    }
+    setUploading(true);
+    setError(null);
+    try {
+      const created = await uploadDocument(file);
+      navigate(`/documents/${created.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not upload file");
+      setUploading(false);
     }
   }
 
@@ -115,7 +139,17 @@ function handleLogout() {
         </div>
       </header>
       <section className="mx-auto max-w-3xl px-4 py-8">
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex justify-end gap-2">
+          <label className="cursor-pointer rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50">
+            {uploading ? "Uploading..." : "Upload .txt or .md"}
+            <input
+              type="file"
+              accept=".txt,.md,text/plain,text/markdown"
+              className="sr-only"
+              disabled={uploading}
+              onChange={handleUpload}
+            />
+          </label>
           <button
             type="button"
             onClick={handleCreate}
