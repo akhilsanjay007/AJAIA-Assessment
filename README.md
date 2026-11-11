@@ -66,6 +66,11 @@ On an open document, Export downloads the current HTML as a `.md` file named fro
 
 The backend deploys to Railway. The frontend deploys to Vercel, or to Railway as a second service. Local `npm run dev` and uvicorn are unchanged: leave `VITE_API_URL` unset and the Vite dev server still proxies `/api` to port 8000.
 
+Two Railway variables are required:
+
+- **Frontend `VITE_API_URL`** — the backend origin only, including `https://`, with no path and no trailing slash. A host without a scheme is treated as `https://`. Vite inlines this at build time, so set it before the frontend build and redeploy after changing it. Login then calls `{VITE_API_URL}/auth/login`.
+- **Backend `CORS_ORIGINS`** — the frontend origin, for example the frontend Railway URL. Separate extra origins with commas. `http://localhost:5173` and `http://127.0.0.1:5173` are always allowed.
+
 ### Backend on Railway
 
 Create a service from this repo with the root directory set to `backend`. Start command:

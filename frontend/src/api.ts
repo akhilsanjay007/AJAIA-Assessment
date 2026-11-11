@@ -13,15 +13,42 @@ export type LoginResponse = {
 const TOKEN_KEY = "access_token";
 const USER_KEY = "user";
 
-// Local `npm run dev` leaves this unset and uses the Vite `/api` proxy.
+// Backend routes live at /auth and /documents. Callers may pass either form.
+function backendPath(path: string): string {
+  const stripped = path.replace(/^\/api(?=\/|$)/, "");
+  if (!stripped || stripped === "/") {
+    return "/";
+  }
+  return stripped.startsWith("/") ? stripped : `/${stripped}`;
+}
+
+// Use only the origin. A scheme-less value such as "api.up.railway.app" would
+// otherwise be resolved relative to the frontend host and concatenate the domains.
+function apiOrigin(raw: string): string {
+  const schemes = [...raw.matchAll(/https?:\/\//gi)];
+  const picked = (schemes.length > 1 ? raw.slice(schemes[schemes.length - 1].index) : raw)
+    .trim()
+    .replace(/\/+$/, "");
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(picked)
+    ? picked
+    : `https://${picked.replace(/^\/+/, "")}`;
+  return new URL(withScheme).origin;
+}
+
+// Local `npm run dev` leaves VITE_API_URL unset and uses the Vite `/api` proxy.
 // A production build uses VITE_API_URL (see frontend/.env.production).
 function resolveApiUrl(path: string): string {
-  const configured = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "");
-  if (!configured) {
-    return path;
+  const route = backendPath(path);
+  const configured = import.meta.env.VITE_API_URL?.trim() ?? "";
+  const url = configured
+    ? `${apiOrigin(configured)}${route === "/" ? "" : route}`
+    : route === "/"
+      ? "/api"
+      : `/api${route}`;
+  if (import.meta.env.DEV) {
+    console.info("[api]", url);
   }
-  const suffix = path.startsWith("/api/") || path === "/api" ? path.slice(4) : path;
-  return `${configured}${suffix}`;
+  return url;
 }
 
 export function getToken(): string | null {
@@ -218,7 +245,7 @@ export async function login(email: string, password: string): Promise<LoginRespo
   body.set("username", email);
   body.set("password", password);
 
-  const response = await fetch(resolveApiUrl("/api/auth/login"), {
+  const response = await fetch(resolveApiUrl("/auth/login"), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,

@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -16,19 +17,21 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="Document Editor", lifespan=lifespan)
 
-# Local Vite is always allowed. After the frontend is deployed, uncomment the
-# placeholder and replace it with that origin, or set CORS_ORIGINS in the environment.
-# Example: "https://your-app.vercel.app"
-allow_origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    # "https://YOUR-FRONTEND-URL",
-    *settings.cors_origin_list,
-]
+def _cors_origins() -> list[str]:
+    # CORS_ORIGINS is the deployed frontend origin. Comma-separate more than one.
+    # Example: https://your-frontend.up.railway.app
+    raw = os.environ.get("CORS_ORIGINS", settings.cors_origins)
+    origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    for part in raw.split(","):
+        origin = part.strip().strip("\"'").rstrip("/")
+        if origin:
+            origins.append(origin)
+    return list(dict.fromkeys(origins))
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=list(dict.fromkeys(allow_origins)),
+    allow_origins=_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
