@@ -1,0 +1,23 @@
+# Dependencies and build output are produced inside the image.
+**/node_modules
+**/dist
+**/.venv
+**/venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/*.db
+backend/static
+
+# Local secrets and VCS. .env.production is not a secret and is included.
+**/.env
+**/.env.local
+**/.env.*.local
+**/.git
+**/.cursor
+**/.idea
+**/.vscode
+**/*.log
+**/.DS_Store
+**/Thumbs.db

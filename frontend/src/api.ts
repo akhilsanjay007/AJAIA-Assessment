@@ -35,16 +35,20 @@ function apiOrigin(raw: string): string {
   return new URL(withScheme).origin;
 }
 
-// Local `npm run dev` leaves VITE_API_URL unset and uses the Vite `/api` proxy.
-// A production build uses VITE_API_URL (see frontend/.env.production).
+// `npm run dev` leaves VITE_API_URL unset and uses the Vite `/api` proxy.
+// A same-origin production build (the Docker image) calls /auth and /documents
+// directly. Set VITE_API_URL only when the API is on another host.
 function resolveApiUrl(path: string): string {
   const route = backendPath(path);
   const configured = import.meta.env.VITE_API_URL?.trim() ?? "";
-  const url = configured
-    ? `${apiOrigin(configured)}${route === "/" ? "" : route}`
-    : route === "/"
-      ? "/api"
-      : `/api${route}`;
+  let url: string;
+  if (configured) {
+    url = `${apiOrigin(configured)}${route === "/" ? "" : route}`;
+  } else if (import.meta.env.DEV) {
+    url = route === "/" ? "/api" : `/api${route}`;
+  } else {
+    url = route;
+  }
   if (import.meta.env.DEV) {
     console.info("[api]", url);
   }
@@ -98,6 +102,9 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
   if (init.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
@@ -137,6 +144,7 @@ export async function uploadDocument(file: File): Promise<DocumentRecord> {
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
+  headers.set("Accept", "application/json");
   const response = await fetch(resolveApiUrl("/api/documents/upload"), { method: "POST", body, headers });
   if (response.status === 401) {
     logout();
@@ -237,6 +245,7 @@ export function leavePresence(id: number): void {
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
+  headers.set("Accept", "application/json");
   void fetch(resolveApiUrl(`/api/documents/${id}/presence`), { method: "DELETE", headers, keepalive: true });
 }
 
@@ -247,7 +256,10 @@ export async function login(email: string, password: string): Promise<LoginRespo
 
   const response = await fetch(resolveApiUrl("/auth/login"), {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
     body,
   });
 
